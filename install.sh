@@ -43,6 +43,33 @@ detect_os() {
     esac
 }
 
+# MIPS uname -m does NOT reveal byte order: modern kernels report "mips" for both
+# big-endian (ath79/ar71xx) and little-endian (ramips MT762x) routers, so mapping
+# uname -m directly to an asset hands little-endian devices the big-endian binary,
+# which the kernel refuses to exec and BusyBox sh then mis-parses as a script
+# ("syntax error: unexpected (""). We read the e_ident[EI_DATA] byte (offset 5;
+# 1=LSB/little, 2=MSB/big) of a native ELF to tell them apart. The device's own
+# shell is probed, never the freshly downloaded bootstrap binary, which may itself
+# be the wrong endianness. Falls back to little-endian (the common OpenWrt case).
+detect_mips_endian() {
+    probe=""
+    for cand in /bin/sh /bin/busybox "$(command -v sh 2>/dev/null || true)" "$(command -v od 2>/dev/null || true)" /usr/bin/env; do
+        if [ -n "$cand" ] && [ -f "$cand" ]; then
+            probe="$cand"
+            break
+        fi
+    done
+    if [ -z "$probe" ]; then
+        printf le
+        return
+    fi
+    case "$(od -An -tu1 -j5 -N1 "$probe" 2>/dev/null | tr -d ' \t\n')" in
+        2) printf be ;;
+        1) printf le ;;
+        *) printf le ;;
+    esac
+}
+
 detect_arch() {
     arch="$(uname -m 2>/dev/null || printf unknown)"
     case "$arch" in
@@ -52,13 +79,14 @@ detect_arch() {
         armv5*) if [ "${os_name:-}" = "freebsd" ]; then printf arm; else printf armv5; fi ;;
         armv6*) if [ "${os_name:-}" = "freebsd" ]; then printf arm; else printf armv6; fi ;;
         armv7*|armv8l) if [ "${os_name:-}" = "freebsd" ]; then printf arm; else printf armv7; fi ;;
-        # MIPS assets are built with GOMIPS=softfloat so they also run on
-        # router CPUs without an FPU; the asset name matches GOARCH, which is
-        # what the in-agent auto updater looks for.
-        mips) printf mips ;;
-        mipsel|mipsle) printf mipsle ;;
-        mips64) printf mips64 ;;
-        mips64el|mips64le) printf mips64le ;;
+        # MIPS assets are built with GOMIPS=softfloat so they also run on router
+        # CPUs without an FPU; the asset name matches GOARCH, which is what the
+        # in-agent auto updater looks for. Endianness comes from detect_mips_endian,
+        # not from uname -m, because uname -m cannot distinguish it.
+        mips|mipsel|mipsle|lmips)
+            if [ "$(detect_mips_endian)" = be ]; then printf mips; else printf mipsle; fi ;;
+        mips64|mips64el|mips64le|lmips64)
+            if [ "$(detect_mips_endian)" = be ]; then printf mips64; else printf mips64le; fi ;;
         loongarch64|loong64) printf loong64 ;;
         *) die "unsupported architecture: $arch" ;;
     esac

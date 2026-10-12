@@ -93,9 +93,11 @@ curl -fsSL https://raw.githubusercontent.com/huilang-me/cfsm-agent/main/install.
 | `aarch64` / `arm64` | `arm64` |
 | `i386` / `i686` | `386` |
 | `armv5*` / `armv6*` / `armv7*` / `armv8l` | `armv5` / `armv6` / `armv7`；FreeBSD 统一为 `arm` |
-| `mips` / `mipsel` | `mips` / `mipsle` |
-| `mips64` / `mips64el` | `mips64` / `mips64le` |
+| `mips*` / `mipsel` / `lmips`（32 位） | `mips`（大端） / `mipsle`（小端），字节序见下 |
+| `mips64*` / `mips64el`（64 位） | `mips64`（大端） / `mips64le`（小端），字节序见下 |
 | `loongarch64` | `loong64` |
+
+MIPS 的字节序**不能**靠 `uname -m` 判断：现代 OpenWrt 内核在大端（ath79/ar71xx）和小端（ramips MT762x）设备上都返回 `mips`。安装脚本改为读取设备自身 shell 这个原生 ELF 的 `e_ident[EI_DATA]` 字节来确定字节序（探测目标不是刚下载的二进制，因为它可能正是错的那一个），据此在 `mips`/`mipsle`（及 `mips64`/`mips64le`）间选择；无法探测时按小端处理（OpenWrt 最常见的情形）。若选错字节序，内核会拒绝执行、BusyBox `sh` 会退回来把二进制当脚本报 `syntax error: unexpected "("`。
 
 MIPS（常见于 OpenWrt 路由器）资产统一使用 `GOMIPS=softfloat` 构建：softfloat 二进制不依赖 CPU 的浮点单元，在没有 FPU 的路由器上同样可以运行，在 hardfloat 用户态上也能正常工作。`uname -m` 无法区分浮点 ABI，因此只发布这一种变体；MIPS 及其他非主流架构的 CPU 使用率使用 `/proc/stat` 采样。
 
