@@ -28,18 +28,38 @@ jobs:
           mkdir -p dist
           LDFLAGS="-s -w -X main.version=${VERSION}"
 
+          # $4 = GOARM, $5 = GOMIPS/GOMIPS64 (MIPS assets are softfloat so they
+          # also run on router CPUs without an FPU)
           build_one() {
             goos="$1"
             goarch="$2"
             suffix="$3"
             goarm="${4:-}"
+            gomips="${5:-}"
             output="dist/cf-probe-${goos}-${suffix}"
             if [ "$goos" = "windows" ]; then
               output="${output}.exe"
             fi
             echo "Building ${goos}/${goarch} -> ${output}"
-            GOOS="$goos" GOARCH="$goarch" GOARM="$goarm" CGO_ENABLED=0 \
-              go build -trimpath -ldflags="$LDFLAGS" -o "$output" ./cmd/cf-probe
+            (
+              if [ -n "$goarm" ]; then
+                export GOARM="$goarm"
+              fi
+              case "$goarch" in
+                mips|mipsle)
+                  if [ -n "$gomips" ]; then
+                    export GOMIPS="$gomips"
+                  fi
+                  ;;
+                mips64|mips64le)
+                  if [ -n "$gomips" ]; then
+                    export GOMIPS64="$gomips"
+                  fi
+                  ;;
+              esac
+              GOOS="$goos" GOARCH="$goarch" CGO_ENABLED=0 \
+                go build -trimpath -ldflags="$LDFLAGS" -o "$output" ./cmd/cf-probe
+            )
           }
 
           build_one linux amd64 amd64
@@ -49,6 +69,10 @@ jobs:
           build_one linux arm armv6 6
           build_one linux arm armv7 7
           build_one linux loong64 loong64
+          build_one linux mipsle mipsle "" softfloat
+          build_one linux mips mips "" softfloat
+          build_one linux mips64le mips64le "" softfloat
+          build_one linux mips64 mips64 "" softfloat
           build_one freebsd amd64 amd64
           build_one freebsd arm64 arm64
           build_one freebsd 386 386

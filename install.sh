@@ -52,6 +52,13 @@ detect_arch() {
         armv5*) if [ "${os_name:-}" = "freebsd" ]; then printf arm; else printf armv5; fi ;;
         armv6*) if [ "${os_name:-}" = "freebsd" ]; then printf arm; else printf armv6; fi ;;
         armv7*|armv8l) if [ "${os_name:-}" = "freebsd" ]; then printf arm; else printf armv7; fi ;;
+        # MIPS assets are built with GOMIPS=softfloat so they also run on
+        # router CPUs without an FPU; the asset name matches GOARCH, which is
+        # what the in-agent auto updater looks for.
+        mips) printf mips ;;
+        mipsel|mipsle) printf mipsle ;;
+        mips64) printf mips64 ;;
+        mips64el|mips64le) printf mips64le ;;
         loongarch64|loong64) printf loong64 ;;
         *) die "unsupported architecture: $arch" ;;
     esac

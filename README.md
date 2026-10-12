@@ -83,6 +83,24 @@ curl -fsSL https://raw.githubusercontent.com/huilang-me/cfsm-agent/main/install.
 
 更新检查（`api.github.com`）、新二进制下载（`github.com`）、指标上报以及公网 IP 查询的 DNS 解析默认使用系统原生 DNS；仅在配置了 `--install-ghproxy`（通常为系统 DNS 被污染的国内服务器）或通过环境变量 `CF_PROBE_UPDATE_DNS` 显式指定 DNS 服务器时，才启用 Agent 内置的公共 DNS 轮询解析（阿里、DNSPod、114、Cloudflare、Google，UDP 53），此时不依赖系统 DNS，内置 DNS 全部不可用时回退系统 DNS。`CF_PROBE_UPDATE_DNS` 会自动补全 `:53` 端口（如 `CF_PROBE_UPDATE_DNS=223.5.5.5`）。root/system 模式更新时 Agent 会把新二进制下载到配置目录，再调度新二进制执行自身的 `install` 完成替换并重启服务；普通用户模式按上一段直接自替换。两种模式都不经过 install.sh 和 curl；下载或调度失败时旧版本不受影响，下次检查自动重试。如 `github.com` 完全不可达，可配置 `--install-ghproxy` 代理（仅用于二进制文件下载；`api.github.com` 的版本检查始终直连，gh-proxy 类服务不支持 API 转发）。
 
+## 支持的架构
+
+安装脚本根据 `uname -m` 选择对应的 release 资产（资产名形如 `cf-probe-linux-<后缀>`）：
+
+| `uname -m` | 资产后缀 |
+| --- | --- |
+| `x86_64` / `amd64` | `amd64` |
+| `aarch64` / `arm64` | `arm64` |
+| `i386` / `i686` | `386` |
+| `armv5*` / `armv6*` / `armv7*` / `armv8l` | `armv5` / `armv6` / `armv7`；FreeBSD 统一为 `arm` |
+| `mips` / `mipsel` | `mips` / `mipsle` |
+| `mips64` / `mips64el` | `mips64` / `mips64le` |
+| `loongarch64` | `loong64` |
+
+MIPS（常见于 OpenWrt 路由器）资产统一使用 `GOMIPS=softfloat` 构建：softfloat 二进制不依赖 CPU 的浮点单元，在没有 FPU 的路由器上同样可以运行，在 hardfloat 用户态上也能正常工作。`uname -m` 无法区分浮点 ABI，因此只发布这一种变体；MIPS 及其他非主流架构的 CPU 使用率使用 `/proc/stat` 采样。
+
+未列出的架构（如 `riscv64`、`s390x`、`ppc64le`）没有发布资产，安装脚本会直接报 `unsupported architecture: <arch>`，请按 [从源码构建](#从源码构建) 自行编译。
+
 ## 安装位置
 
 | 系统 | 二进制默认位置 | 配置文件 | 日志 |
