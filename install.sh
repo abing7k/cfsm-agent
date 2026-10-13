@@ -1,9 +1,17 @@
 #!/bin/sh
 set -eu
 
+# abing7k 的固定版本分支（my）。
+#
+# 与上游 huilang-me/cfsm-agent 的 main 相比只有一处改动：默认安装版本从 latest 改成固定版本，
+# 避免上游发布新版 agent 后，重新安装时被换成跟自建 Worker 不匹配的版本。
+# 二进制仍然从上游同名 release 下载（tag 固定后内容不会变），只有脚本由我们自己维护。
+#
+# 要换版本：改下面的 AGENT_VERSION，或者临时传 --install-version=vX.Y.Z。
 REPO="huilang-me/cfsm-agent"
 GITHUB_PROXY=""
-INSTALL_VERSION="latest"
+AGENT_VERSION="v1.0.19"
+INSTALL_VERSION="$AGENT_VERSION"
 
 log() {
     printf '%s\n' "$*"
@@ -199,6 +207,7 @@ tmp_err="$tmp.err"
 trap 'rm -f "$tmp" "$tmp_err"' EXIT INT TERM
 
 log "CF-Server-Monitor Go Probe bootstrap"
+log "  script  : abing7k/cfsm-agent (my, pinned)"
 log "  repo    : $REPO"
 log "  version : $INSTALL_VERSION"
 log "  target  : $os_name/$arch_name"

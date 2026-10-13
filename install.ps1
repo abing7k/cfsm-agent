@@ -1,8 +1,9 @@
 ﻿$ErrorActionPreference = "Stop"
 
+# abing7k 的固定版本分支（my）：默认安装固定版本，避免上游更新后与自建 Worker 不匹配。
 $Repo = "huilang-me/cfsm-agent"
 $GitHubProxy = ""
-$InstallVersion = "latest"
+$InstallVersion = "v1.0.19"
 $AutoUpdateEnabled = $false
 
 $needValueFor = ""
